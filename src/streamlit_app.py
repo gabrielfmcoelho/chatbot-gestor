@@ -59,6 +59,19 @@ async def main() -> None:
         menu_items={},
     )
 
+    st.markdown(
+        """
+        <style>
+            [data-testid="stSidebar"][aria-expanded="false"] {
+                min-width: 0rem;
+                width: 0rem;
+                overflow: hidden;
+            }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
     # Hide the streamlit upper-right chrome
     st.html(
         """
@@ -83,7 +96,9 @@ async def main() -> None:
         load_dotenv()
         agent_url = os.getenv("AGENT_URL")
         if not agent_url:
-            host = os.getenv("HOST", "0.0.0.0")
+            host = os.getenv("HOST", "127.0.0.1")
+            if host == "0.0.0.0":
+                host = "localhost"
             port = os.getenv("PORT", 8080)
             agent_url = f"http://{host}:{port}"
         try:
@@ -111,8 +126,6 @@ async def main() -> None:
 
     # Config options
     with st.sidebar:
-        st.header(f"{APP_ICON} {APP_TITLE}")
-
         ""
         "Full toolkit for running an AI agent service built with LangGraph, FastAPI and Streamlit"
         ""
@@ -194,8 +207,10 @@ async def main() -> None:
                 WELCOME = """Hello! I'm an AI-powered Company Policy & HR assistant with access to AcmeTech's Employee Handbook.
                 I can help you find information about benefits, remote work, time-off policies, company values, and more. Ask me anything!"""
             case _:
-                WELCOME = "Hello! I'm an AI agent. Ask me anything!"
+                WELCOME = "Bem-vindo ao chatbot do Gestor!"
 
+
+        st.image("media/logo_color.svg", width=200)
         with st.chat_message("ai"):
             st.write(WELCOME)
 

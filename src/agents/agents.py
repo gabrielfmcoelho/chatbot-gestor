@@ -4,6 +4,7 @@ from langgraph.pregel import Pregel
 
 from agents.bg_task_agent.bg_task_agent import bg_task_agent
 from agents.chatbot import chatbot
+from agents.gestor import app
 from agents.command_agent import command_agent
 from agents.interrupt_agent import interrupt_agent
 from agents.knowledge_base_agent import kb_agent
@@ -12,7 +13,7 @@ from agents.rag_assistant import rag_assistant
 from agents.research_assistant import research_assistant
 from schema import AgentInfo
 
-DEFAULT_AGENT = "research-assistant"
+DEFAULT_AGENT = "gestor"
 
 
 @dataclass
@@ -22,6 +23,7 @@ class Agent:
 
 
 agents: dict[str, Agent] = {
+    "gestor": Agent(description="Chatbot simples do Gestor", graph=app),
     "chatbot": Agent(description="A simple chatbot.", graph=chatbot),
     "research-assistant": Agent(
         description="A research assistant with web search and calculator.", graph=research_assistant
