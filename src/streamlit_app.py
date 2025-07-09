@@ -210,6 +210,7 @@ async def main() -> None:
                 WELCOME = "Bem-vindo ao chatbot do Gestor!"
 
 
+        #
         st.image("media/logo_color.svg", width=200)
         with st.chat_message("ai"):
             st.write(WELCOME)
