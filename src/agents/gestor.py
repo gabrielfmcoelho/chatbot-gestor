@@ -18,7 +18,8 @@ class AppState(MessagesState):
 
 # Função para chamar o LLM e identificar a intenção
 def identify_intent(state: AppState) -> AppState:
-    system_prompt = """Você é um classificador de intenções para o sistema SEAD. 
+    system_prompt = """Você é um assistente classificador de intenções para o sistema SEAD.
+    Responda sempre em português do Brasil, nunca em inglês.
     Identifique a intenção e extraia parâmetros relevantes, retornando APENAS JSON:
 
     Opções:
@@ -124,8 +125,38 @@ def generate_response(state: AppState) -> AppState:
     print(f"Intenção identificada: {intent}")
 
     if intent == "outro":
-        print("Intenção 'outro' detectada.")
-        state["message"] = state["api_intent"].get("response", "Não entendi sua pergunta.")
+        print("Intenção 'outro' detectada. Fazendo chamada direta para a IA.")
+        # Busca a última mensagem do usuário (HumanMessage)
+        ultima_mensagem_usuario = None
+        for msg in reversed(state["messages"]):
+            if isinstance(msg, HumanMessage):
+                ultima_mensagem_usuario = msg.content
+                break
+
+        if ultima_mensagem_usuario is None:
+            ultima_mensagem_usuario = ""
+
+        try:
+            response = requests.post(
+                MANDU_API_URL,
+                json={
+                    "model": "Qwen/Qwen3-30B-A3B",
+                    "messages": [
+                        {"role": "user", "content": ultima_mensagem_usuario}
+                    ],
+                    "temperature": 0.3
+                },
+                headers={
+                    "Authorization": f"Bearer {MANDU_API_KEY}",
+                    "Content-Type": "application/json"
+                }
+            )
+            response.raise_for_status()
+            state["message"] = response.json()["choices"][0]["message"]["content"]
+            print("Resposta natural recebida da IA para intenção 'outro'.")
+        except Exception as e:
+            print(f"Erro ao chamar a IA para intenção 'outro': {e}")
+            state["message"] = "Não consegui obter uma resposta natural."
         mensagem = parse_string_to_message(state["message"])
         state["messages"].append(mensagem)
         print("Mensagem para intenção 'outro' adicionada ao estado.")
@@ -138,6 +169,7 @@ def generate_response(state: AppState) -> AppState:
     - Seja claro e conciso
     - Para listas vazias, explique educadamente
     - Destaque informações principais
+    - Responda sempre em português, você está localizada no Brasil
     """
     # Busca a última mensagem do usuário (HumanMessage)
     ultima_mensagem_usuario = None
