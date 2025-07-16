@@ -1,14 +1,18 @@
 from typing import List, Dict, Optional, TypedDict, Any
 from langgraph.graph import StateGraph, END, MessagesState
 from langchain_core.messages import AIMessage, HumanMessage
+from langchain_mcp_adapters.client import MultiServerMCPClient
 import requests
 import json
+import urllib3
+
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # Configurações
 MANDU_API_URL = "https://api.sobdemanda.mandu.piaui.pro/v1/chat/completions"
 MANDU_API_KEY = "sk-7tYgDXM2_Oekl0NHGYyTBA"
 GESTOR_API_URL = "https://mcp.gestor.sead.pi.gov.br"
-
+MCP_TOOLS_INFO = "/mcp"
 
 # Modelo de Estado
 class AppState(MessagesState):
@@ -16,20 +20,23 @@ class AppState(MessagesState):
     api_response: Optional[Dict[str, Any]]
     error: Optional[str]
 
+
+def original_discover_mcp_tools() -> List[Dict[str, Any]]:
+    tool_info_url = f"{GESTOR_API_URL}{MCP_TOOLS_INFO}"
+    print(f"Descobrindo ferramentas MCP de: {tool_info_url}")
+    response = requests.get(tool_info_url, verify=False)
+    response.raise_for_status()
+    return response.json()
+    
 # Função para chamar o LLM e identificar a intenção
 def identify_intent(state: AppState) -> AppState:
-    system_prompt = """Você é um assistente classificador de intenções para o sistema SEAD.
-    Responda sempre em português do Brasil, nunca em inglês.
-    Identifique a intenção e extraia parâmetros relevantes, retornando APENAS JSON:
-
-    Opções:
-    1. {"intent": "pessoa", "parameters": {"nome": "Nome Completo"}}
-    2. {"intent": "objetivo", "parameters": {"orgao": "Nome", "setor": "Setor"}} 
-    3. {"intent": "hierarquia", "parameters": {"orgao": "Nome"}}
-    4. {"intent": "outro", "response": "Resposta direta"}
-
-    Exemplo 1: "Quem é João Silva?" → {"intent": "pessoa", "parameters": {"nome": "João Silva"}}
-    Exemplo 2: "Objetivos da SEAD" → {"intent": "objetivo", "parameters": {"orgao": "SEAD"}}
+    system_prompt = """Você é um assistente especializado em classificação de intenções para o sistema SEAD, com capacidade de integrar dados via API. 
+    Siga estritamente estas diretrizes:\n\n1. LINGUAGEM:\n- Responda APENAS em português do Brasil\n- Use linguagem formal e técnica adequada para servidores públicos\n\n2. 
+    PROCESSAMENTO:\n- Analise a intenção com precisão antes de responder\n- Extraia parâmetros de forma minuciosa\n- Mantenha respostas curtas e objetivas (máximo 2 frases quando diretas)\n\n3. 
+    FORMATO DE SAÍDA:\n- Para classificações: APENAS JSON estruturado\n- 
+    Para respostas diretas: texto claro e conciso\n\n4. OPÇÕES DE INTENÇÃO:\n{\n  \"pessoa\": {\n    \"descrição\": \"Consultar dados de servidor\",\n    
+    \"parâmetros\": {\"nome\": \"Nome Completo (exato)\"},\n    \"exemplo\": \"Quem é Maria Souza? → {\"intent\": \"pessoa\", \"parameters\": {\"nome\": \"Maria Souza\"}}\"\n  },\n  \"objetivo\": {\n    \"descrição\": \"Consultar objetivos institucionais\",\n    \"parâmetros\": {\"orgao\": \"Nome Oficial\", \"setor\": \"Opcional\"},\n    \"exemplo\": \"Quais os objetivos da PRODAM? → {\"intent\": \"objetivo\", \"parameters\": {\"orgao\": \"PRODAM\"}}\"\n  },\n  \"hierarquia\": {\n    \"descrição\": \"Estrutura organizacional\",\n    \"parâmetros\": {\"orgao\": \"Nome Oficial\"},\n    \"exemplo\": \"Mostre a estrutura da SEGOV → {\"intent\": \"hierarquia\", \"parameters\": {\"orgao\": \"SEGOV\"}}\"\n  },\n  \"outro\": {\n    \"descrição\": \"Demais assuntos\",\n    
+    \"response\": \"Resposta direta e objetiva\"\n  }\n}\n\n5. VALIDAÇÃO:\n- Confirme siglas antes de consultar (ex: \"SEAD\" ≠ \"SED\") \n- Para nomes incompletos, solicite complemento: \"Poderia confirmar o nome completo?\"\n- Em ambiguidades, enumere opções claras\n\n6. PERFORMANCE:\n- Priorize velocidade de resposta\n- Mantenha consistência terminológica\n- Documente eventuais limitações de dados
     """
     
     try:
