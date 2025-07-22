@@ -70,7 +70,9 @@ def call_api(state: AppState) -> AppState:
         return state
     
     intent = state["api_intent"].get("intent")
+    print(f"Chamando API para a intenção: {intent}")
     params = state["api_intent"].get("parameters", {})
+    print(f"Parâmetros recebidos: {params}")
     
     try:
         if intent == "pessoa":
@@ -102,6 +104,8 @@ def call_api(state: AppState) -> AppState:
                 verify=False
             )
             state["api_response"] = response.json()
+
+        print(f"Resposta da API: {state['api_response']}")
             
     except Exception as e:
         state["error"] = f"Erro na API: {str(e)}"
