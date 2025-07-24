@@ -453,6 +453,7 @@ orgaos_validos = [
 
 # Modelo de Estado
 class AppState(MessagesState):
+    human_message: Optional[str]
     api_intent: Optional[Dict[str, Any]]
     api_response: Optional[Dict[str, Any]]
     error: Optional[str]
@@ -467,6 +468,11 @@ def original_discover_mcp_tools() -> List[Dict[str, Any]]:
     
 # Função para chamar o LLM e identificar a intenção
 def identify_intent(state: AppState) -> AppState:
+    state["error"] = None
+    state["human_message"] = None
+    state["api_intent"] = None
+    state["api_response"] = None
+
     system_prompt = f"""
         Você é um assistente especializado em classificação de intenções para o sistema SEAD, com capacidade de integrar dados via API.
 
@@ -504,10 +510,11 @@ def identify_intent(state: AppState) -> AppState:
             "parâmetros": {{"orgao": "Sigla ou Nome (Opcional)", "setor": "Sigla ou Nome (Opcional)"}},
             "exemplo": "Mostre a estrutura da SEAD → {{"intent": "hierarquia", "parameters": {{"orgao": "SEGOV"}}}}",
             "exemplo": "O que é a NTGD → {{"intent": "hierarquia", "parameters": {{"setor": "SEGOV"}}}}"
+            "exemplo": "O que é SEAD → {{"intent": "hierarquia", "parameters": {{"orgao": "SEAD"}}}}",
         }},
         "outro": {{
             "descrição": "Demais assuntos",
-            "response": "Resposta direta e objetiva"
+            "response": None
         }}
         }}
 
@@ -522,20 +529,21 @@ def identify_intent(state: AppState) -> AppState:
         - Documente eventuais limitações de dados
 
         **INSTRUÇÃO ADICIONAL PARA TODAS AS INTENÇÕES:**
-        Considere como 'orgão' apenas se estiver na lista abaixo. Caso contrário, trate como 'setor'.
+        Considere como 'orgão' apenas se estiver na lista abaixo. Caso contrário, trate como 'setor' e use os dados da lista para complementar informações sobre orgão.
 
         Lista de órgãos válidos:
         {orgaos_validos}
         """
     
     try:
+        state["human_message"] = state["messages"][-1].content
         response = requests.post(
             MANDU_API_URL,
             json={
                 "model": "Qwen/Qwen3-30B-A3B",
                 "messages": [
                     {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": state["messages"][-1].content}
+                    {"role": "user", "content": state["human_message"]}
                 ],
                 "temperature": 0.1
             },
@@ -547,8 +555,10 @@ def identify_intent(state: AppState) -> AppState:
         response.raise_for_status()
         content = response.json()["choices"][0]["message"]["content"]
         state["api_intent"] = json.loads(content)
+        print(f"Chamando API para a intenção: {state["api_intent"]}")
         
     except Exception as e:
+        print(f"Erro ao identificar intenção: {str(e)}")
         state["error"] = f"Erro ao identificar intenção: {str(e)}"
     
     return state
@@ -559,9 +569,7 @@ def call_api(state: AppState) -> AppState:
         return state
     
     intent = state["api_intent"].get("intent")
-    print(f"Chamando API para a intenção: {intent}")
     params = state["api_intent"].get("parameters", {})
-    print(f"Parâmetros recebidos: {params}")
     
     try:
         if intent == "pessoa":
@@ -594,10 +602,9 @@ def call_api(state: AppState) -> AppState:
                 verify=False
             )
             state["api_response"] = response.json()
-
-        print(f"Resposta da API: {state['api_response']}")
-            
+                    
     except Exception as e:
+        print(f"Erro na API: {str(e)}")
         state["error"] = f"Erro na API: {str(e)}"
     
     return state
@@ -613,76 +620,38 @@ def parse_string_to_message(text: str):
 
 # Função para gerar resposta natural
 def generate_response(state: AppState) -> AppState:
-    print("Entrou em generate_response")
     if state.get("error"):
         print(f"Erro detectado no estado: {state['error']}")
         state["message"] = "Desculpe, ocorreu um erro. Por favor, tente novamente."
         mensagem = parse_string_to_message(state["message"])
         state["messages"].append(mensagem)
-        print("Mensagem de erro adicionada ao estado.")
         return state
-
-    intent = state["api_intent"].get("intent")
-    print(f"Intenção identificada: {intent}")
-
-    if intent == "outro":
-        print("Intenção 'outro' detectada. Fazendo chamada direta para a IA.")
-        # Busca a última mensagem do usuário (HumanMessage)
-        ultima_mensagem_usuario = None
-        for msg in reversed(state["messages"]):
-            if isinstance(msg, HumanMessage):
-                ultima_mensagem_usuario = msg.content
-                break
-
-        if ultima_mensagem_usuario is None:
-            ultima_mensagem_usuario = ""
-
-        try:
-            response = requests.post(
-                MANDU_API_URL,
-                json={
-                    "model": "Qwen/Qwen3-30B-A3B",
-                    "messages": [
-                        {"role": "user", "content": ultima_mensagem_usuario}
-                    ],
-                    "temperature": 0.3
-                },
-                headers={
-                    "Authorization": f"Bearer {MANDU_API_KEY}",
-                    "Content-Type": "application/json"
-                }
-            )
-            response.raise_for_status()
-            state["message"] = response.json()["choices"][0]["message"]["content"]
-            print("Resposta natural recebida da IA para intenção 'outro'.")
-        except Exception as e:
-            print(f"Erro ao chamar a IA para intenção 'outro': {e}")
-            state["message"] = "Não consegui obter uma resposta natural."
-        mensagem = parse_string_to_message(state["message"])
-        state["messages"].append(mensagem)
-        print("Mensagem para intenção 'outro' adicionada ao estado.")
-        return state
-
-    system_prompt = f"""Você é um assistente que transforma dados JSON em respostas naturais.
-    Dados recebidos: {json.dumps(state.get("api_response"))}
     
-    Regras:
-    - Seja claro e conciso
-    - Para listas vazias, explique educadamente
-    - Destaque informações principais
-    - Responda sempre em português, você está localizada no Brasil
+    # passar a intenção, o contexto que o assistente conseguiu pesquisar (api_response), informações sobre orgão, instruções de responsta, explique que ele é o Chat Gestor desenvolvido pelo Nucleo .... com dados da aplicação Gestor
+
+    system_prompt = f"""/no_think Você é um assistente do Chat para gestores desenvolvido pelo Nucleo de Tecnologia e Governo Digital (NTGD) da SEAD. Seu nome é Chat Gestor.
+
+        Siga estritamente estas diretrizes:
+
+        1. LINGUAGEM:
+        - Responda APENAS em português do Brasil
+        - Seja claro e conciso
+        - Destaque informações principais
+        - Use linguagem formal e técnica adequada para servidores públicos
+        - Use formato de markdown
+        - quando possivel enumere ou pontue informações em formato de lista ou pontos com markdown e pulando linhas
+
+        2. PROCESSAMENTO:
+        - Considere a intenção do usuario: {state.get("api_intent")}
+        - Considere os seguintes dados, para enriquecer seu contexto de resposta: {state.get("api_response")}
+        - Use a intenção do usuario em conjunto com os dados extraidos das ferramentas disponiveis (banco da aplicação Gestor) para orientar e melhorar sua resposta 
+
+        **INSTRUÇÃO ADICIONAL:**
+        Use os dados da lista para complementar informações sobre orgãos do Governo do Estado do Piaui caso necesario
+
+        Lista de órgãos válidos:
+        {orgaos_validos}
     """
-    # Busca a última mensagem do usuário (HumanMessage)
-    ultima_mensagem_usuario = None
-    for msg in reversed(state["messages"]):
-        if isinstance(msg, HumanMessage):
-            ultima_mensagem_usuario = msg.content
-            break
-
-    if ultima_mensagem_usuario is None:
-        ultima_mensagem_usuario = ""
-
-    user_prompt = f'Transforme estes dados em uma resposta para: quando a resposta envolver orgão utiliza a lista"{orgaos_validos}" para complementar resposta "{ultima_mensagem_usuario}"'
 
     try:
         print("Enviando requisição para o MANDU_API_URL...")
@@ -692,7 +661,7 @@ def generate_response(state: AppState) -> AppState:
                 "model": "Qwen/Qwen3-30B-A3B",
                 "messages": [
                     {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
+                    {"role": "user", "content": state["human_message"]}
                 ],
                 "temperature": 0.3
             },
