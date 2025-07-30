@@ -8,17 +8,8 @@ import urllib3
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-# Configurações
-MANDU_API_URL = "https://api.sobdemanda.mandu.piaui.pro/v1/chat/completions"
-MANDU_API_KEY = "sk-7tYgDXM2_Oekl0NHGYyTBA"
 GESTOR_API_URL = "https://mcp.gestor.sead.pi.gov.br"
 MCP_TOOLS_INFO = "/mcp"
-
-# Modelo de Estado
-class AppState(MessagesState):
-    api_intent: Optional[Dict[str, Any]]
-    api_response: Optional[Dict[str, Any]]
-    error: Optional[str]
 
 
 def original_discover_mcp_tools() -> List[Dict[str, Any]]:
@@ -222,17 +213,3 @@ def generate_response(state: AppState) -> AppState:
     state["messages"].append(mensagem)
     print("Mensagem final adicionada ao estado.")
     return state
-
-# Configuração do Grafo
-graph = StateGraph(AppState)
-
-graph.add_node("identify_intent", identify_intent)
-graph.add_node("call_api", call_api)
-graph.add_node("generate_response", generate_response)
-
-graph.set_entry_point("identify_intent")
-graph.add_edge("identify_intent", "call_api")
-graph.add_edge("call_api", "generate_response")
-graph.add_edge("generate_response", END)
-
-app = graph.compile()
