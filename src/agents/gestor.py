@@ -492,6 +492,7 @@ def identify_intent(state: AppState) -> AppState:
         - Para respostas diretas: texto claro e conciso
 
         4. OPÇÕES DE INTENÇÃO:
+        - Classifique a intenção do usuário em uma das seguintes categorias:
         {{
         "pessoa": {{
             "descrição": "Consultar dados de servidor",
@@ -508,9 +509,16 @@ def identify_intent(state: AppState) -> AppState:
         "hierarquia": {{
             "descrição": "Estrutura organizacional",
             "parâmetros": {{"orgao": "Sigla ou Nome (Opcional)", "setor": "Sigla ou Nome (Opcional)"}},
-            "exemplo": "Mostre a estrutura da SEAD → {{"intent": "hierarquia", "parameters": {{"orgao": "SEGOV"}}}}",
-            "exemplo": "O que é a NTGD → {{"intent": "hierarquia", "parameters": {{"setor": "SEGOV"}}}}"
+            "exemplo": "Mostre a estrutura da SEAD → {{"intent": "hierarquia", "parameters": {{"orgao": "SEAD"}}}}",
+            "exemplo": "O que é a NTGD → {{"intent": "hierarquia", "parameters": {{"setor": "NTGD"}}}}",
             "exemplo": "O que é SEAD → {{"intent": "hierarquia", "parameters": {{"orgao": "SEAD"}}}}",
+        }},
+        "projetos": {{
+            "descrição": "Consulta projetos",
+            "parâmetros": {{"setor": "Sigla ou Nome (Opcional)", "nome_projeto": "Nome do Projeto (Opcional)", "nome_pessoa": "Nome do Responsável (Opcional)"}},
+            "exemplo": "Mostre quais os projetos da NTGD → {{"intent": "projetos", "parameters": {{"setor": "NTGD"}}}}",
+            "exemplo": "Quais os projetos de Ubaldo Junior → {{"intent": "projetos", "parameters": {{"nome_pessoa": "Ubaldo Junior"}}}}",
+            "exemplo": "Quem é o responsável pelo projeto X → {{"intent": "projetos", "parameters": {{"nome_projeto": "X"}}}}",
         }},
         "outro": {{
             "descrição": "Demais assuntos",
@@ -598,6 +606,19 @@ def call_api(state: AppState) -> AppState:
                 f"{GESTOR_API_URL}/hierarquia-entidades/",
                 json={"orgao": params.get("orgao"), 
                       "setor": params.get("setor")},
+                headers={"Content-Type": "application/json"},
+                verify=False
+            )
+            state["api_response"] = response.json()
+
+        elif intent == "projetos":
+            response = requests.post(
+                f"{GESTOR_API_URL}/busca-projetos/",
+                json={
+                    "setor": params.get("setor"),
+                    "nome_projeto": params.get("nome_projeto"),
+                    "nome_pessoa": params.get("nome_pessoa")
+                },
                 headers={"Content-Type": "application/json"},
                 verify=False
             )
