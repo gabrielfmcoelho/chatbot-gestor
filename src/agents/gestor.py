@@ -10,7 +10,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # Configurações
 MANDU_API_URL = "https://api.sobdemanda.mandu.piaui.pro/v1/chat/completions"
-MANDU_API_KEY = "sk-7tYgDXM2_Oekl0NHGYyTBA"
+MANDU_API_KEY = "sk-ZfNzJZFOmJHVDnlOfnOugCivU4IL5orM"
 GESTOR_API_URL = "https://mcp.gestor.sead.pi.gov.br"
 MCP_TOOLS_INFO = "/mcp"
 
@@ -540,7 +540,7 @@ def identify_intent(state: AppState) -> AppState:
         response = requests.post(
             MANDU_API_URL,
             json={
-                "model": "Qwen/Qwen3-30B-A3B",
+                "model": "Qwen/Qwen3-8B",
                 "messages": [
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": state["human_message"]}
@@ -658,7 +658,7 @@ def generate_response(state: AppState) -> AppState:
         response = requests.post(
             MANDU_API_URL,
             json={
-                "model": "Qwen/Qwen3-30B-A3B",
+                "model": "Qwen/Qwen3-8B",
                 "messages": [
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": state["human_message"]}
