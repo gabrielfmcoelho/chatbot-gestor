@@ -613,11 +613,11 @@ def call_api(state: AppState) -> AppState:
 
         elif intent == "projetos":
             response = requests.post(
-                f"{GESTOR_API_URL}/busca-projetos/",
+                f"{GESTOR_API_URL}/projeto/",
                 json={
                     "setor": params.get("setor"),
-                    "nome_projeto": params.get("nome_projeto"),
-                    "nome_pessoa": params.get("nome_pessoa")
+                    "nome_pessoa": params.get("nome_pessoa"),
+                    "nome_projeto": params.get("nome_projeto")
                 },
                 headers={"Content-Type": "application/json"},
                 verify=False
