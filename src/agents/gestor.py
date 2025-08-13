@@ -520,6 +520,13 @@ def identify_intent(state: AppState) -> AppState:
             "exemplo": "Quais os projetos de Ubaldo Junior → {{"intent": "projetos", "parameters": {{"nome_pessoa": "Ubaldo Junior"}}}}",
             "exemplo": "Quem é o responsável pelo projeto X → {{"intent": "projetos", "parameters": {{"nome_projeto": "X"}}}}",
         }},
+        "aniversariantes": {{
+            "descrição": "Consultar aniversariantes do mês",
+            "parâmetros": {{}},
+            "exemplo": "Quem são os aniversariantes do mês? → {{"intent": "aniversariantes", "parameters": {{}}}}",
+            "exemplo": "Mostre os aniversários de hoje → {{"intent": "aniversariantes", "parameters": {{}}}}",
+            "exemplo": "Quais são os aniversariantes? → {{"intent": "aniversariantes", "parameters": {{}}}}",
+        }},
         "outro": {{
             "descrição": "Demais assuntos",
             "response": None
@@ -623,7 +630,16 @@ def call_api(state: AppState) -> AppState:
                 verify=False
             )
             state["api_response"] = response.json()
-                    
+
+        elif intent == "aniversariantes":
+            response = requests.post(
+                f"{GESTOR_API_URL}/pessoa/aniversariantes",
+                json={},
+                headers={"Content-Type": "application/json"},
+                verify=False
+            )
+            state["api_response"] = response.json()
+
     except Exception as e:
         print(f"Erro na API: {str(e)}")
         state["error"] = f"Erro na API: {str(e)}"
