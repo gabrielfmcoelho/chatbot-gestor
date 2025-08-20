@@ -211,7 +211,9 @@ async def main() -> None:
 
 
         #
-        st.image("media/logo_color.svg", width=200)
+        # PRINT THE PWD OF THE PATH TO SEE WHATS WRONG
+        #print(f"Current working directory: {os.getcwd()}")
+        #st.image("./media/logo_SEAD.svg", width=200)
         with st.chat_message("ai"):
             st.write(WELCOME)
 

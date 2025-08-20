@@ -25,7 +25,6 @@ from schema.models import (
     OllamaModelName,
     OpenAICompatibleName,
     OpenAIModelName,
-    OpenRouterModelName,
     Provider,
     VertexAIModelName,
 )
@@ -67,7 +66,7 @@ class Settings(BaseSettings):
     OLLAMA_MODEL: str | None = None
     OLLAMA_BASE_URL: str | None = None
     USE_FAKE_MODEL: bool = False
-    OPENROUTER_API_KEY: SecretStr | None = None
+    #OPENROUTER_API_KEY: SecretStr | None = None
 
     # If DEFAULT_MODEL is None, it will be set in model_post_init
     DEFAULT_MODEL: AllModelEnum | None = None  # type: ignore[assignment]
@@ -121,8 +120,8 @@ class Settings(BaseSettings):
         default_factory=dict, description="Map of model names to Azure deployment IDs"
     )
 
-    MANDU_API_URL: str = "https://api.sobdemanda.mandu.piaui.pro/v1/chat/completions"
-    MANDU_API_KEY: str | None
+    #MANDU_API_URL: str = "https://api.sobdemanda.mandu.piaui.pro/v1/chat/completions"
+    #MANDU_API_KEY: str | None
 
     def model_post_init(self, __context: Any) -> None:
         api_keys = {
@@ -137,7 +136,7 @@ class Settings(BaseSettings):
             Provider.OLLAMA: self.OLLAMA_MODEL,
             Provider.FAKE: self.USE_FAKE_MODEL,
             Provider.AZURE_OPENAI: self.AZURE_OPENAI_API_KEY,
-            Provider.OPENROUTER: self.OPENROUTER_API_KEY,
+            #Provider.OPENROUTER: self.OPENROUTER_API_KEY,
         }
         active_keys = [k for k, v in api_keys.items() if v]
         if not active_keys:
@@ -181,10 +180,6 @@ class Settings(BaseSettings):
                     if self.DEFAULT_MODEL is None:
                         self.DEFAULT_MODEL = OllamaModelName.OLLAMA_GENERIC
                     self.AVAILABLE_MODELS.update(set(OllamaModelName))
-                case Provider.OPENROUTER:
-                    if self.DEFAULT_MODEL is None:
-                        self.DEFAULT_MODEL = OpenRouterModelName.GEMINI_25_FLASH
-                    self.AVAILABLE_MODELS.update(set(OpenRouterModelName))
                 case Provider.FAKE:
                     if self.DEFAULT_MODEL is None:
                         self.DEFAULT_MODEL = FakeModelName.FAKE
